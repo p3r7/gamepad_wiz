@@ -4,6 +4,8 @@
 
 local hid_events = require "hid_events"
 
+local inspect = include('lib/inspect')
+
 
 -- ------------------------------------------------------------------------
 -- conf
@@ -12,11 +14,20 @@ local setup_steps = {
   'choose_device',
   'analog_calibration',
 
-  -- TODO: analog VS dpad
   'dpad_up',
   'dpad_down',
   'dpad_left',
   'dpad_right',
+
+  -- 'lstick_up',
+  -- 'lstick_down',
+  -- 'lstick_left',
+  -- 'lstick_right',
+
+  -- 'rstick_up',
+  -- 'rstick_down',
+  -- 'rstick_left',
+  -- 'rstick_right',
 }
 
 local buttons = {
@@ -24,19 +35,21 @@ local buttons = {
   'B',
   'X',
   'Y',
-  'C',
-  'Z',
+  -- 'C',
+  -- 'Z',
   'L1',
-  'L2',
   'R1',
+  'L2',
   'R2',
-  'SELECT',
   'START',
+  'SELECT',
 }
 
 for _, b in ipairs(buttons) do
   table.insert(setup_steps, b)
 end
+table.insert(setup_steps, 'confirm')
+table.insert(setup_steps, 'end')
 
 -- ------------------------------------------------------------------------
 -- state
@@ -57,10 +70,24 @@ local g = {
   axis_invert = {
   },
 
-  analog_axis_o_magin = 0,
+  analog_axis_o_magin = {},
   analog_axis_resolution = 256,
 }
 
+local function after_step_change()
+  local step_name = setup_steps[curr_setup_step]
+
+  if step_name == 'analog_calibration' then
+    analog_o_offset_buff = {}
+    analog_o_offset_nb_samples = 0
+    analog_o_offset_nb_axis = 0
+    g.analog_axis_o_magin = {}
+  elseif tab.contains(buttons, step_name) then
+    g.button[step_name] = nil
+  elseif step_name == 'end' then
+    print(inspect(g))
+  end
+end
 
 local function next_step()
   curr_setup_step = curr_setup_step + 1
@@ -72,17 +99,6 @@ local function prev_step()
   after_step_change()
 end
 
-local function after_step_change()
-  local step_name = setup_steps[curr_setup_step]
-
-  if step_name == 'analog_calibration' then
-    analog_o_offset_buff = {}
-    analog_o_offset_samples = 0
-    g.analog_axis_o_magin = 0
-  elseif tab.contains(buttons, step_name) then
-    g.button[step_name] = nil
-  end
-end
 
 -- ------------------------------------------------------------------------
 -- init
@@ -109,7 +125,7 @@ function init()
                  clock.cancel(blink_id)
                  clocking = false
                end
-               print ("hid ".. devicepos .." selected: " .. hdevs[devicepos])
+               print("hid ".. devicepos .." selected: " .. hdevs[devicepos])
 
   end}
 
@@ -176,7 +192,10 @@ end
 -- HID EVENT CB
 
 local analog_o_offset_buff = {}
-local analog_o_offset_samples = 0
+local analog_o_offset_nb_axis = 0
+local analog_o_offset_nb_samples = 0
+
+local ANALOG_CALIBRATION_SAMPLES_PER_AXIS = 50
 
 function hid_event(typ, code, val)
 
@@ -194,22 +213,41 @@ function hid_event(typ, code, val)
 
   if event_code_type == "EV_ABS" then
     if step_name == 'analog_calibration' then
-      table.insert(analog_o_offset_buff, val)
-      analog_o_offset_samples = analog_o_offset_samples + 1
-      if analog_o_offset_samples > 50 then
-        local max_offset = 0
-        for _, v in ipairs(analog_o_offset_buff) do
-          local offset = math.abs(v - half_reso)
-          if offset > max_offset then
-            max_offset = offset
+
+      local axis_evt = gamepad.axis_code_2_keycode(code)
+      local axis = gamepad.direction_event_code_type_to_axis(axis_evt)
+      local is_analog = gamepad.is_direction_event_code_analog(axis_evt)
+
+      if not is_analog then
+        return
+      end
+
+      if analog_o_offset_buff[axis] == nil then
+        analog_o_offset_buff[axis] = {}
+        analog_o_offset_nb_axis = analog_o_offset_nb_axis + 1
+      end
+
+      table.insert(analog_o_offset_buff[axis], val)
+      analog_o_offset_nb_samples = analog_o_offset_nb_samples + 1
+
+      if (analog_o_offset_nb_samples / analog_o_offset_nb_axis) > ANALOG_CALIBRATION_SAMPLES_PER_AXIS then
+        local max_offsets = {}
+        for axis, samples in ipairs(analog_o_offset_buff) do
+          max_offsets[axis] = 0
+          for _, v in ipairs(samples) do
+            local offset = math.abs(v - half_reso)
+            if offset > max_offsets[axis] then
+              max_offsets[axis] = offset + 2 -- we take some margin
+            end
           end
         end
-        g.analog_axis_o_magin = max_offset + 2 -- we take some margin
+        g.analog_axis_o_magin = max_offsets
         next_step()
       end
     elseif util.string_starts(step_name, 'dpad_') then
 
       local sign = val
+      local axis_evt = gamepad.axis_code_2_keycode(code)
       local is_analog = gamepad.is_direction_event_code_analog(axis_evt)
 
       if is_analog then
@@ -253,13 +291,32 @@ function redraw()
   screen.level(15)
   if step_name == 'choose_device' then
     screen.move(0, 7)
+    screen.text("choose device")
+    screen.move(0, 17)
     screen.text(devicepos .. ": ".. truncate_txt(hdevs[devicepos], 19))
+    screen.move(0, 64-10)
+    screen.text("E1: select, K3: next")
   elseif step_name == 'analog_calibration' then
     screen.move(0, 7)
     screen.text("calibrating analog inputs")
+    screen.move(0, 17)
+    screen.text("(" .. analog_o_offset_nb_samples .. "/" .. (ANALOG_CALIBRATION_SAMPLES_PER_AXIS * analog_o_offset_nb_axis) .. ")")
+    screen.move(0, 64-10)
+    screen.text("K2: prev")
+  elseif util.string_starts(step_name, 'dpad_')
+    or tab.contains(buttons, step_name) then
+    screen.move(0, 7)
+    screen.text("press "..step_name)
+    screen.move(0, 64-10)
+    screen.text("K2: prev, K3: next (skip)")
+  elseif step_name == 'confirm' then
+    screen.move(0, 7)
+    screen.text("generate conf file?")
+    screen.move(0, 64-10)
+    screen.text("K2: prev, K3: yes")
   else
     screen.move(0, 7)
-    screen.text(step_name)
+    screen.text("FINISHED")
   end
 
   screen.update()
@@ -289,6 +346,7 @@ function connect()
   hid_device = hid.connect(devicepos)
   hid_device.event = hid_event
 end
+
 
 -- ------------------------------------------------------------------------
 -- HELPER FNS - STR
