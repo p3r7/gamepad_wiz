@@ -14,19 +14,19 @@ local setup_steps = {
   'choose_device',
   'analog_calibration',
 
-  'dpad_up',
+  -- 'dpad_up',
   'dpad_down',
   'dpad_left',
-  'dpad_right',
+  -- 'dpad_right',
 
   -- 'lstick_up',
-  -- 'lstick_down',
-  -- 'lstick_left',
+  'lstick_down',
+  'lstick_left',
   -- 'lstick_right',
 
   -- 'rstick_up',
-  -- 'rstick_down',
-  -- 'rstick_left',
+  'rstick_down',
+  'rstick_left',
   -- 'rstick_right',
 }
 
@@ -197,6 +197,18 @@ local analog_o_offset_nb_samples = 0
 
 local ANALOG_CALIBRATION_SAMPLES_PER_AXIS = 50
 
+local function step_2_axis(step_name)
+  if step_name == 'dpad_down' or step_name == 'lstick_down' then
+    return 'Y'
+  elseif step_name == 'dpad_left' or step_name == 'lstick_left' then
+    return 'X'
+  elseif step_name == 'rpad_down' then
+    return 'RZ'
+  elseif step_name == 'rpad_left' then
+    return 'Z'
+  end
+end
+
 function hid_event(typ, code, val)
 
   local step_name = setup_steps[curr_setup_step]
@@ -244,11 +256,23 @@ function hid_event(typ, code, val)
         g.analog_axis_o_magin = max_offsets
         next_step()
       end
-    elseif util.string_starts(step_name, 'dpad_') then
+    elseif util.string_starts(step_name, 'dpad_')
+      or util.string_starts(step_name, 'lstick_')
+      or util.string_starts(step_name, 'rstick_') then
+
+      local tested_axis = step_2_axis(step_name)
+
+      print(step_name.." -> ".. tested_axis)
 
       local sign = val
       local axis_evt = gamepad.axis_code_2_keycode(code)
+      local axis = gamepad.direction_event_code_type_to_axis(axis_evt)
       local is_analog = gamepad.is_direction_event_code_analog(axis_evt)
+
+      if axis ~= tested_axis then
+        print("pressed "..axis.." while expected "..tested_axis)
+        return
+      end
 
       if is_analog then
         val = val - half_reso
@@ -264,12 +288,15 @@ function hid_event(typ, code, val)
       end
 
       if sign ~= 0 then
-        -- TODO: register direction
+        if sign < 0 then
+          g.axis_invert[tested_axis] = true
+        else
+          g.axis_invert[tested_axis] = false
+        end
         next_step()
       end
     end
   end
-
   if event_code_type == "EV_KEY"
     and tab.contains(buttons, step_name)
     and val == 0
@@ -304,6 +331,8 @@ function redraw()
     screen.move(0, 64-10)
     screen.text("K2: prev")
   elseif util.string_starts(step_name, 'dpad_')
+    or util.string_starts(step_name, 'lstick_')
+    or util.string_starts(step_name, 'rstick_')
     or tab.contains(buttons, step_name) then
     screen.move(0, 7)
     screen.text("press "..step_name)
