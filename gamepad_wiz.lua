@@ -51,27 +51,14 @@ local curr_setup_step = 1
 local g = {
   hid_name = nil,
   alias = nil,
-  button = {
-    A = nil,
-    B = nil,
-    X = nil,
-    Y = nil,
-    C = nil,
-    Z = nil,
-    L1 = nil,
-    L2 = nil,
-    R1 = nil,
-    R2 = nil,
-    SELECT = nil,
-    START = nil,
+
+  button = {},
+
+  axis_invert = {
   },
 
-  dpad_o_margin = 0,
-  dpad_resolution = 256,
-  dpad_invert = {
-    Y = false,
-    X = false,
-  },
+  analog_axis_o_magin = 0,
+  analog_axis_resolution = 256,
 }
 
 
@@ -91,7 +78,7 @@ local function after_step_change()
   if step_name == 'analog_calibration' then
     analog_o_offset_buff = {}
     analog_o_offset_samples = 0
-    g.dpad_o_margin = 0
+    g.analog_axis_o_magin = 0
   elseif tab.contains(buttons, step_name) then
     g.button[step_name] = nil
   end
@@ -195,7 +182,7 @@ function hid_event(typ, code, val)
 
   local step_name = setup_steps[curr_setup_step]
 
-  local half_reso = g.dpad_resolution/2
+  local half_reso = g.analog_axis_resolution/2
 
   local event_code_type
   for k, v in pairs(hid_events.types) do
@@ -217,16 +204,25 @@ function hid_event(typ, code, val)
             max_offset = offset
           end
         end
-        g.dpad_o_margin = max_offset + 2 -- we take some margin
+        g.analog_axis_o_magin = max_offset + 2 -- we take some margin
         next_step()
       end
     elseif util.string_starts(step_name, 'dpad_') then
 
-      val = val - half_reso
-      if val <= half_reso * 2/3 and val >= - half_reso * 2/3 then
-        sign = 0
-      else
-        sign = val < 0 and -1 or 1
+      local sign = val
+      local is_analog = gamepad.is_direction_event_code_analog(axis_evt)
+
+      if is_analog then
+        val = val - half_reso
+        if val <= half_reso * 2/3 and val >= - half_reso * 2/3 then
+          sign = 0
+        else
+          sign = val < 0 and -1 or 1
+        end
+      else -- digital
+        if sign ~= 0 then
+          sign = val < 0 and -1 or 1
+        end
       end
 
       if sign ~= 0 then
