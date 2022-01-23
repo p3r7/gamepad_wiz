@@ -46,10 +46,6 @@ local hdevs = {}
 local hid_device
 local msg = {}
 
-local hid_buffer = {}
-local hid_buffer_len = 256
-local buff_start = 1
-
 local curr_setup_step = 1
 
 local g = {
@@ -78,12 +74,33 @@ local g = {
   },
 }
 
+
+local function next_step()
+  curr_setup_step = curr_setup_step + 1
+  after_step_change()
+end
+
+local function prev_step()
+  curr_setup_step = curr_setup_step - 1
+  after_step_change()
+end
+
+local function after_step_change()
+  local step_name = setup_steps[curr_setup_step]
+
+  if step_name == 'analog_calibration' then
+    analog_o_offset_buff = {}
+    analog_o_offset_samples = 0
+    g.dpad_o_margin = 0
+  elseif tab.contains(buttons, step_name) then
+    g.button[step_name] = nil
+  end
+end
+
 -- ------------------------------------------------------------------------
 -- init
 
 function init()
-  clear_hid_buffer()
-
   connect()
   get_hid_names()
   print_hid_names()
@@ -137,21 +154,13 @@ function key(n, z)
   local changed = false
 
   if n==2 and z == 1 and curr_setup_step > 0 then
-    curr_setup_step = curr_setup_step - 1
-    changed = true
+    prev_step()
   end
   if n == 3 and z == 1 then
     if setup_steps[curr_setup_step] ~= 'analog_calibration' then
-      curr_setup_step = curr_setup_step + 1
-      changed = true
+      next_step()
     end
   end
-
-  if changed and setup_steps[curr_setup_step] == 'analog_calibration' then
-    analog_o_offset_buff = {}
-    analog_o_offset_samples = 0
-  end
-
 end
 
 
@@ -209,7 +218,7 @@ function hid_event(typ, code, val)
           end
         end
         g.dpad_o_margin = max_offset + 2 -- we take some margin
-        curr_setup_step = curr_setup_step + 1
+        next_step()
       end
     elseif util.string_starts(step_name, 'dpad_') then
 
@@ -222,7 +231,7 @@ function hid_event(typ, code, val)
 
       if sign ~= 0 then
         -- TODO: register direction
-        curr_setup_step = curr_setup_step + 1
+        next_step()
       end
     end
   end
@@ -232,7 +241,7 @@ function hid_event(typ, code, val)
     and val == 0
   then
     g.button[step_name] = code
-    curr_setup_step = curr_setup_step + 1
+    next_step()
   end
 end
 
@@ -284,15 +293,6 @@ function connect()
   hid_device = hid.connect(devicepos)
   hid_device.event = hid_event
 end
-
-function clear_hid_buffer()
-  hid_buffer = {}
-  for z=1,hid_buffer_len do
-    table.insert(hid_buffer, {})
-  end
-  buff_start = 1
-end
-
 
 -- ------------------------------------------------------------------------
 -- HELPER FNS - STR
