@@ -8,3 +8,4 @@ see https://github.com/monome/norns/pull/1439
 TODO:
 
 - [ ] skip analog calibration if no event received after 3 seconds (for digital-only controllers)
+- [ ] store calibration & invert axis by `axis_event` and not simply `axis`
