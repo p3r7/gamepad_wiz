@@ -189,6 +189,47 @@ end
 
 
 -- ------------------------------------------------------------------------
+-- COPY-PASTED FROM GAMEPAD LIB
+
+--- Optimized version of `gamepad.code_2_keycode`
+function axis_code_2_keycode(code)
+  local mapping = {
+    [0x00] = 'ABS_X',
+    [0x01] = 'ABS_Y',
+    [0x02] = 'ABS_Z',
+    [0x03] = 'ABS_RX',
+    [0x04] = 'ABS_RY',
+    [0x05] = 'ABS_RZ',
+    [0x10] = 'ABS_HAT0X',
+    [0x11] = 'ABS_HAT0Y',
+  }
+  return mapping[code]
+end
+
+function direction_event_code_type_to_axis(evt)
+  if evt == 'ABS_HAT0Y' or evt == 'ABS_Y' then
+    return 'Y'
+  elseif evt == 'ABS_HAT0X' or evt == 'ABS_X' then
+    return 'X'
+  elseif evt == 'ABS_RY' then
+    return 'RY'
+  elseif evt == 'ABS_RX' then
+    return 'RX'
+  elseif evt == 'ABS_Z' then
+    return 'Z'
+  elseif evt == 'ABS_RZ' then
+    return 'RZ'
+  end
+end
+
+function is_direction_event_code_analog(evt)
+  return tab.contains({'ABS_Y', 'ABS_X',
+                       'ABS_RY', 'ABS_RX',
+                       'ABS_Z', 'ABS_RZ',}, evt)
+end
+
+
+-- ------------------------------------------------------------------------
 -- HID EVENT CB
 
 local analog_o_offset_buff = {}
@@ -226,9 +267,9 @@ function hid_event(typ, code, val)
   if event_code_type == "EV_ABS" then
     if step_name == 'analog_calibration' then
 
-      local axis_evt = gamepad.axis_code_2_keycode(code)
-      local axis = gamepad.direction_event_code_type_to_axis(axis_evt)
-      local is_analog = gamepad.is_direction_event_code_analog(axis_evt)
+      local axis_evt = axis_code_2_keycode(code)
+      local axis = direction_event_code_type_to_axis(axis_evt)
+      local is_analog = is_direction_event_code_analog(axis_evt)
 
       if not is_analog then
         return
@@ -265,9 +306,9 @@ function hid_event(typ, code, val)
       print(step_name.." -> ".. tested_axis)
 
       local sign = val
-      local axis_evt = gamepad.axis_code_2_keycode(code)
-      local axis = gamepad.direction_event_code_type_to_axis(axis_evt)
-      local is_analog = gamepad.is_direction_event_code_analog(axis_evt)
+      local axis_evt = axis_code_2_keycode(code)
+      local axis = direction_event_code_type_to_axis(axis_evt)
+      local is_analog = is_direction_event_code_analog(axis_evt)
 
       if axis ~= tested_axis then
         print("pressed "..axis.." while expected "..tested_axis)
