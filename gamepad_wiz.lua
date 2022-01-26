@@ -67,6 +67,8 @@ local g = {
 
   button = {},
 
+  dpad_is_analog = false,
+
   axis_invert = {
   },
 
@@ -326,6 +328,10 @@ function hid_event(typ, code, val)
         if sign ~= 0 then
           sign = val < 0 and -1 or 1
         end
+      end
+
+      if is_analog and util.string_starts(step_name, 'dpad_') then
+        g.dpad_is_analog = true
       end
 
       if sign ~= 0 then
