@@ -76,6 +76,38 @@ local g = {
   analog_axis_resolution = 256,
 }
 
+local function str_trim(s)
+  return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+-- NB: tab.save is kinda wacky w/ hashmaps
+local function tab_save(t, filepath)
+  local file, err = io.open(filepath, "wb")
+  if err then return err end
+  file:write("return "..inspect(t))
+  file:close()
+end
+
+local function save_gamepad (g, filename)
+  tab.save(g, "/home/we/norns/lua/core/gamepad_model/" .. filename .. ".lua")
+  -- tab_save(g, "/tmp/" .. filename .. ".lua")
+end
+
+local function save_n_register_gamepad (g)
+  local dev_filename = str_trim(g.alias):gsub('%W','_')
+  save_gamepad(g, dev_filename)
+  local file, err = io.open("/home/we/norns/lua/core/gamepad_model/index.lua", "wb")
+  -- local file, err = io.open("/tmp/index.lua", "wb")
+  if err then return err end
+  file:write("\n")
+  file:write("local models = {}\n")
+  file:write("\n")
+  file:write("models['" .. g.hid_name .. "']" .. "= require 'gamepad_model/" .. dev_filename .. "'\n")
+  file:write("\n")
+  file:write("return models\n")
+  file:close()
+end
+
 local function after_step_change()
   local step_name = setup_steps[curr_setup_step]
 
@@ -87,7 +119,11 @@ local function after_step_change()
   elseif tab.contains(buttons, step_name) then
     g.button[step_name] = nil
   elseif step_name == 'end' then
+    local dev_name = hdevs[devicepos]
+    g.hid_name = dev_name
+    g.alias = str_trim(dev_name) -- FIXME: promt user?
     print(inspect(g))
+    save_n_register_gamepad(g)
   end
 end
 
@@ -127,7 +163,7 @@ function init()
                  clock.cancel(blink_id)
                  clocking = false
                end
-               print("hid ".. devicepos .." selected: " .. hdevs[devicepos])
+               -- print("hid ".. devicepos .." selected: " .. hdevs[devicepos])
 
   end}
 
@@ -240,6 +276,10 @@ local analog_o_offset_nb_samples = 0
 
 local ANALOG_CALIBRATION_SAMPLES_PER_AXIS = 50
 
+function round(v)
+  return math.floor(v+0.5)
+end
+
 local function step_2_axis(step_name)
   if step_name == 'dpad_down' or step_name == 'lstick_down' then
     return 'Y'
@@ -287,10 +327,10 @@ function hid_event(typ, code, val)
 
       if (analog_o_offset_nb_samples / analog_o_offset_nb_axis) > ANALOG_CALIBRATION_SAMPLES_PER_AXIS then
         local max_offsets = {}
-        for axis, samples in ipairs(analog_o_offset_buff) do
+        for axis, samples in pairs(analog_o_offset_buff) do
           max_offsets[axis] = 0
           for _, v in ipairs(samples) do
-            local offset = math.abs(v - half_reso)
+            local offset = round(math.abs(v - half_reso))
             if offset > max_offsets[axis] then
               max_offsets[axis] = offset + 2 -- we take some margin
             end
@@ -305,7 +345,9 @@ function hid_event(typ, code, val)
 
       local tested_axis = step_2_axis(step_name)
 
-      print(step_name.." -> ".. tested_axis)
+      if tested_axis ~= nil then
+        -- print(step_name.." -> ".. tested_axis)
+      end
 
       local sign = val
       local axis_evt = axis_code_2_keycode(code)
@@ -313,7 +355,7 @@ function hid_event(typ, code, val)
       local is_analog = is_direction_event_code_analog(axis_evt)
 
       if axis ~= tested_axis then
-        print("pressed "..axis.." while expected "..tested_axis)
+        -- print("pressed "..axis.." while expected "..tested_axis)
         return
       end
 
