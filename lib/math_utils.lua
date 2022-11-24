@@ -68,7 +68,7 @@ function math_utils.modes(samples)
 
   for k,v in pairs( counts ) do
     if v == biggestCount then
-      table.insert( temp, k )
+      table.insert( modes, k )
     end
   end
 
