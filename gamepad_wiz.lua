@@ -529,7 +529,7 @@ local function hid_event_axis(code, val)
       end
 
 
-      if prev_half_axis.min > min then
+      if prev_half_axis.min < min then
         g.axis_invert[tested_axis] = true
       else
         g.axis_invert[tested_axis] = false
