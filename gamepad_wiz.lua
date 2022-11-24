@@ -116,6 +116,7 @@ g = {
 -- TMP STATE - ANALOG SAMPLING
 
 local ANALOG_CALIBRATION_SAMPLES_PER_AXIS = 50
+local DPAD_ANALOG_CALIBRATION_SAMPLES = 3
 
 local analog_v_buff = {}
 local analog_v_buff_nb_axis = 0
@@ -150,21 +151,12 @@ end
 
 local prev_half_axis = nil
 
-local function register_half_axis(axis_keycode, min, max, direction)
-
-  -- NB: this is no more necessary
-  local vals_text = ""
-  if direction > 1 then
-    vals_text = min.." -> "..max .. "(fw)"
-  else
-    vals_text = max.." -> "..min .. "(bw)"
-  end
-  print("axis is "..axis_keycode..", captured values: "..vals_text)
+local function register_half_axis(axis_keycode, min, max)
+  print("axis is "..axis_keycode..", captured values: "..min.." -> "..max)
 
   prev_half_axis = {
     min = min,
     max = max,
-    direction = direction,
     axis_keycode = axis_keycode,
   }
 end
@@ -387,11 +379,12 @@ local function hid_event_analog_calibration(code, val)
 
   -- REVIEW: maybe ensure that each axis got all of its events
   if (analog_v_nb_samples / analog_v_buff_nb_axis) > ANALOG_CALIBRATION_SAMPLES_PER_AXIS then
-    local max_offsets = {}
+    print(inspect(analog_v_buff))
     for axis_keycode, samples in pairs(analog_v_buff) do
-      max_offsets[axis_keycode] = math_utils.max_offset(samples)
+      local mode = math_utils.mode(samples)
+      g.analog_axis_o[axis_keycode] = mode
+      g.analog_axis_o_margin[axis_keycode] = math_utils.max_offset_from(samples, mode)
     end
-    g.analog_axis_o_margin[axis_keycode] = max_offsets
     next_step()
   end
 end
@@ -458,7 +451,13 @@ local function hid_event_axis(code, val)
 
   sample_axis_event(code, val)
 
-  if analog_v_nb_samples  > ANALOG_CALIBRATION_SAMPLES_PER_AXIS then
+  local expected_samples = ANALOG_CALIBRATION_SAMPLES_PER_AXIS
+  if util.string_starts(step_name, 'dpad') then
+    expected_samples = DPAD_ANALOG_CALIBRATION_SAMPLES
+  end
+
+
+  if analog_v_nb_samples > expected_samples then
     local max_nb_events = 0
     local tested_axis = 0
     for axis_keycode, samples in pairs(analog_v_buff) do
@@ -472,32 +471,8 @@ local function hid_event_axis(code, val)
     local min = math_utils.min(analog_v_buff[tested_axis])
     local max = math_utils.max(analog_v_buff[tested_axis])
 
-    local count_dir_pos = 0
-    local count_dir_neg = 0
-    for i=2,6 do
-      if analog_v_buff[tested_axis][i+1] > analog_v_buff[tested_axis][i] then
-        count_dir_pos = count_dir_pos + 1
-      elseif analog_v_buff[tested_axis][i+1] < analog_v_buff[tested_axis][i] then
-        count_dir_neg = count_dir_neg + 1
-      end
-    end
-
-    -- NB: this is no more necessary
-    local direction = 1
-    if count_dir_pos > count_dir_neg then
-      direction = 1
-      print("postive direction: "..min.." -> "..max)
-    elseif count_dir_pos < count_dir_neg then
-      direction = -1
-      print("negative direction: "..max.." -> "..min)
-    else
-      print("couldn't determine direction (draw between "..count_dir_pos.." vs "..count_dir_neg.."), should retest of only consider first half of samples")
-      -- redo_step()
-      return
-    end
-
     if prev_half_axis == nil then
-      register_half_axis(tested_axis, min, max, direction)
+      register_half_axis(tested_axis, min, max)
       reset_analog_input_samples()
     else
 
@@ -510,6 +485,7 @@ local function hid_event_axis(code, val)
       local min = math.min(prev_half_axis.min, min)
       local max = math.max(prev_half_axis.max, max)
 
+      -- NB: normalize
       if min < -32000 and max > 32000 then
         min = -32768
         max = 32767
@@ -650,7 +626,11 @@ function redraw()
     or is_at_button_step() then
     if is_at_axis_step() then
       screen.move(0, 17)
-      screen.text("(" .. analog_v_nb_samples .. "/" .. ANALOG_CALIBRATION_SAMPLES_PER_AXIS.. ")")
+      local total = ANALOG_CALIBRATION_SAMPLES_PER_AXIS
+      if util.string_starts(step_name, 'dpad') then
+        total = DPAD_ANALOG_CALIBRATION_SAMPLES
+      end
+      screen.text("(" .. analog_v_nb_samples .. "/" .. total .. ")")
     end
     screen.move(0, 7)
     if is_at_axis_step() then
