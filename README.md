@@ -50,10 +50,6 @@ it sends the raw sensor value (`val`) noramized around 0 as well as `half_reso`,
 
 so `val` can only go between `-half_reso` and `half_reso`.
 
-TODO: edge case of triggers
-
-TODO: digital dpad ?!
-
 
 ## examples
 
