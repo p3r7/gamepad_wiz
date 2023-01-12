@@ -53,7 +53,7 @@ so `val` can only go between `-half_reso` and `half_reso`.
 
 ## examples
 
-#### A button is pressed
+#### digital A button is pressed
 
 - `gamepad.state.A` gets set to `true`
 - `gamepad.button('A', true)`
@@ -68,23 +68,23 @@ so `val` can only go between `-half_reso` and `half_reso`.
 
 #### analog dpad down is pressed
 
-- `gamepad.analog('dpady', -100, 127)` (example values)
 - `gamepad.state.DPDOWN` gets set to `true`
+- `gamepad.analog('dpady', -100, 127)` (example values)
 - `gamepad.axis('dpady', -1)`
 - `gamepad.dpad('Y', -1)`
 
 
 #### analog left stick down is pressed
 
-- `gamepad.analog('lefty', -100, 127)` (example values)
 - `gamepad.state.LDOWN` gets set to `true`
+- `gamepad.analog('lefty', -100, 127)` (example values)
 - `gamepad.axis('lefty', -1)`
 
 
 #### analog left shoulder button is pressed
 
-- `gamepad.analog('triggerleft', 230, 255)` (example values)
 - `gamepad.state.TLEFT` gets set to `true`
+- `gamepad.analog('triggerleft', 230, 255)` (example values)
 - `gamepad.axis('triggerleft', 1)`
 - `gamepad.trigger_button('L2', true)`
 
