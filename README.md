@@ -85,7 +85,7 @@ so `val` can only go between `-half_reso` and `half_reso`.
 
 - `gamepad.analog('triggerleft', 230, 255)` (example values)
 - `gamepad.state.TLEFT` gets set to `true`
-- `gamepad.axis('triggerleft', -1)`
+- `gamepad.axis('triggerleft', 1)`
 - `gamepad.trigger_button('L2', true)`
 
 
