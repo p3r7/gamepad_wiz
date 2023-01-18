@@ -69,7 +69,7 @@ so `val` can only go between `-half_reso` and `half_reso`.
 #### analog dpad down is pressed
 
 - `gamepad.state.DPDOWN` gets set to `true`
-- `gamepad.analog('dpady', -100, 127)` (example values)
+- `gamepad.analog('dpady', -100, 128)` (example values)
 - `gamepad.axis('dpady', -1)`
 - `gamepad.dpad('Y', -1)`
 
@@ -77,7 +77,7 @@ so `val` can only go between `-half_reso` and `half_reso`.
 #### analog left stick down is pressed
 
 - `gamepad.state.LDOWN` gets set to `true`
-- `gamepad.analog('lefty', -100, 127)` (example values)
+- `gamepad.analog('lefty', -100, 128)` (example values)
 - `gamepad.axis('lefty', -1)`
 
 
