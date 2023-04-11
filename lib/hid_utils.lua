@@ -36,6 +36,10 @@ function hid_utils.name_current()
   return hid_utils.hdevs[hid_utils.devicepos]
 end
 
+function hid_utils.guid_current()
+  return hid_utils.hid_device.guid
+end
+
 function hid_utils.pos_current()
   return hid_utils.devicepos
 end

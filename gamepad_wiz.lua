@@ -301,6 +301,7 @@ after_step_change = function()
     local dev_name = hid_utils.name_current()
     g.hid_name = dev_name
     g.alias = string_utils.trim(dev_name) -- FIXME: promt user?
+    g.guid = hid_utils.guid_current()
     local dev_filename = string_utils.trim(g.alias):gsub('%W','_')
     save_gamepad(g, dev_filename)
   end
