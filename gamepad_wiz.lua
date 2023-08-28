@@ -11,7 +11,7 @@ if gamepad == nil then
 end
 
 local hid_device_param = "hid_device"
-local hid_utils = include('lib/hid_utils')
+hid_utils = include('lib/hid_utils')
 
 local string_utils = include('lib/string_utils')
 local math_utils = include('lib/math_utils')
@@ -366,7 +366,7 @@ function enc(n, d)
   end
 
   if n == 1 then
-    hid_utils.enc(hid_device_param, delta)
+    hid_utils.enc(hid_device_param, d)
   end
   -- redraw()
 end

@@ -37,7 +37,7 @@ function hid_utils.name_current()
 end
 
 function hid_utils.guid_current()
-  return hid_utils.hid_device.guid
+  return hid_utils.hid_device.device.guid
 end
 
 function hid_utils.pos_current()
